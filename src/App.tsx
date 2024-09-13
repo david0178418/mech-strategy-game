@@ -2,31 +2,46 @@
 import { useOnEntityAdded } from 'miniplex-react';
 import { ECS } from './state';
 import { proxy, useSnapshot } from 'valtio';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useRef, useState } from 'react';
 import { useEventListener } from './hooks';
 
 const {
 	Entities,
 	Entity,
-	useCurrentEntity,
 	world,
 } = ECS;
 
 const Queries = {
-	toMove: world.with('position', 'movable'),
-	rendered: world.with('position'),
-	movingThings: world.with('position', 'speed', 'movetarget', 'rotation'),
+	selectable: world.with('selectable'),
+	toMove: world.with(
+		'position',
+		'movable',
+	),
+	rendered: world.with(
+		'position',
+		'selectable',
+		'rotation',
+	),
+	movingThings: world.with(
+		'position',
+		'movable',
+		'movetarget',
+		'rotation',
+	),
 };
 
 world.add({
-	metadata: { name: 'Foo' },
-	movable: true,
-	speed: 10,
+	movable: proxy({
+		speed: 10,
+	}),
 	rotation: proxy({value: 0}),
 	position: proxy({
 		x: 800,
 		y: 600,
 	}),
+	selectable: proxy({
+		selected: false,
+	})
 });
 
 export default function Root() {
@@ -38,6 +53,23 @@ export default function Root() {
 				viewportWidth={1200}
 				viewportHeight={900}
 			/>
+			<button onClick={() => {
+				world.add({
+					movable: proxy({
+						speed: 10,
+					}),
+					rotation: proxy({value: 0}),
+					position: proxy({
+						x: randomInRange(200, 1000),
+						y: randomInRange(100, 500),
+					}),
+					selectable: proxy({
+						selected: false,
+					})
+				});
+			}}>
+				Spawn Entity
+			</button>
 		</div>
 	);
 }
@@ -65,7 +97,7 @@ function GameWorld(props: Props) {
 			viewportWidth={viewportWidth}
 		>
 			<Entities in={Queries.rendered}>
-				<EntityRender />
+				{e => <EntityRender entity={e}/>}
 			</Entities>
 		</Viewport>
 	);
@@ -87,6 +119,8 @@ function Viewport(props: StageProps) {
 		viewportHeight,
 		children,
 	} = props;
+	const viewportRef = useRef(null);
+	const bodyRef = useRef(document.body);
 	const [isDragging, setIsDragging] = useState(false);
 	const [currentX, setCurrentX] = useState(0);
 	const [currentY, setCurrentY] = useState(0);
@@ -96,68 +130,71 @@ function Viewport(props: StageProps) {
 	const [offsetY, setOffsetY] = useState(0);
 	const X = clamp(currentX - offsetX, -(width - viewportWidth), 0);
 	const Y = clamp(currentY - offsetY, -(height - viewportHeight), 0);
-	
-	useEventListener('mousedown', startDragging);
-	useEventListener('mousemove', drag);
-	useEventListener('mouseup', stopDragging);
+
+	useEventListener('mousedown', handleStartDragging, viewportRef);
+	useEventListener('mousemove', handleDrag, viewportRef);
+	useEventListener('mouseup', handleStopDragging, viewportRef);
+	useEventListener('mouseout', handleMouseOut, bodyRef);
 	useOnEntityAdded(Queries.movingThings, MoveSystem);
 	
 	return (
-		<>
-			
-			<div>
-				viewportWidth: {viewportWidth}
-			</div>
-			<div>
-				viewportHeight: {viewportHeight}
-			</div>
-			<div>
-				Current: {currentX}, {currentY}
-			</div>
-			<div>
-				Initial: {initialX}, {initialY}
-			</div>
-			<div>
-				Offset: {offsetX}, {offsetY}
-			</div>
-			<div>
-				X, Y: {X}, {Y}
-			</div>
+		<div
+			className="viewport"
+			ref={viewportRef}
+			style={{
+				width: viewportWidth,
+				height: viewportHeight,
+			}}
+		>
 			<div
-				className="viewport"
+				className="stage"
 				style={{
-					width: viewportWidth,
-					height: viewportHeight,
+					width: width,
+					height: height,
+					translate: `${X}px ${Y}px`,
 				}}
 			>
-				<div
-					className="stage"
-					style={{
-						width: width,
-						height: height,
-						translate: `${X}px ${Y}px 0`,
-					}}
-				>
-					{children}
-				</div>
+				{children}
 			</div>
-		</>
+		</div>
 	);
 
+	function handleMouseOut(e: MouseEvent) {
+		if(!isDragging) return;
+		if(e.currentTarget !== document.body) return;
 
-	function startDragging(e: MouseEvent) {
+		handleStopDragging(e);
+	}
+
+	function handleStartDragging(e: MouseEvent) {
+		if(e.button !== 0) {
+			return;
+		}
+
 		setIsDragging(true);
 		setInitialX(e.clientX);
 		setInitialY(e.clientY);
 	}
 
-	function stopDragging() {
-		setCurrentX(
-			clamp(currentX - offsetX, -(width - viewportWidth), 0)
-		);
-		setCurrentY(
-			clamp(currentY - offsetY, -(height - viewportHeight), 0)
-		);
+	function handleStopDragging(e: MouseEvent) {
+		if(e.button === 2) {
+			handleLeftClick(e, currentX, currentY);
+			return;
+		}
+
+
+		if(Math.abs(offsetX) < 10 && Math.abs(offsetY) < 10) {
+			handleClick();
+			
+		} else {
+			setCurrentX(
+				clamp(currentX - offsetX, -(width - viewportWidth), 0)
+			);
+			setCurrentY(
+				clamp(currentY - offsetY, -(height - viewportHeight), 0)
+			);
+		}
+
 		setIsDragging(false);
 		setInitialX(0);
 		setInitialY(0);
@@ -165,7 +202,7 @@ function Viewport(props: StageProps) {
 		setOffsetY(0);
 	}
 
-	function drag(e: MouseEvent) {
+	function handleDrag(e: MouseEvent) {
 		e.preventDefault();
 
 		if(!isDragging) {
@@ -177,33 +214,58 @@ function Viewport(props: StageProps) {
 
 		setOffsetX(newX);
 		setOffsetY(newY);
+
+		setOffsetX(initialX - e.clientX);
+		setOffsetY(initialY - e.clientY);
 	}
 }
 
-function EntityRender() {
-	const entity = useCurrentEntity();
-	// @ts-expect-error sadfa
-	const position = useSnapshot<{x: number; y: number;}>(entity.position);
-	// @ts-expect-error sadfa
-	const rotation = useSnapshot<{value: number;}>(entity.rotation);
+function handleLeftClick(ev: MouseEvent, currentX: number, currentY: number) {
+	Queries
+		.selectable
+		.entities
+		.filter(e => e.selectable.selected)
+		.map(e => {
+			world.addComponent(e, 'movetarget', {
+				x: ev.clientX - currentX,
+				y: ev.clientY - currentY,
+			})
+		})
+}
+
+function handleClick() {
+	Queries.selectable.entities.map(e => e.selectable.selected = false);
+}
+
+interface EntityRenderProps {
+	entity: typeof Queries.rendered.entities[0]
+}
+
+function EntityRender(props: EntityRenderProps) {
+	const { entity} = props;
+	const position = useSnapshot(entity.position);
+	const rotation = useSnapshot(entity.rotation);
+	const selectable = useSnapshot(entity.selectable);
 
 	return (
 		<Entity entity={entity}>
 			<div
 				className="entity-container"
 				style={{
-				translate: `${position.x}px ${position.y}px 0`,
-				rotate: `${rotation.value}deg`,
-			}}>
+					translate: `${position.x}px ${position.y}px 0`,
+					rotate: `${rotation.value}deg`,
+				}}
+				onClick={() => entity.selectable.selected = true}
+			>
 				<div
+					className={selectable.selected ? 'selected' : ''}
 					style={{
 						backgroundColor: 'green',
-						width: 25,
-						height: 25,
+						width: 50,
+						height: 50,
+						cursor: 'pointer',
 					}}
-				>
-					{entity.metadata?.name}
-				</div>
+				/>
 			</div>
 		</Entity>
 	);
@@ -222,8 +284,8 @@ function clamp(num: number, min: number, max: number) {
 	return Math.min(Math.max(num, min), max);
 }
 
-// function randomInRange(min: number, max: number) {
-// 	min = Math.ceil(min);
-// 	max = Math.floor(max);
-// 	return Math.floor(Math.random() * (max - min + 1)) + min;
-// }
+function randomInRange(min: number, max: number) {
+	min = Math.ceil(min);
+	max = Math.floor(max);
+	return Math.floor(Math.random() * (max - min + 1)) + min;
+}

@@ -10,15 +10,20 @@ export interface OrderedPair {
 /* Our entity type */
 export type Entity = Partial<{
 	metadata: {
-		name: string;
+		name: 'string'
 	};
-	rotation: {value: number;};
+	rotation: {value: number};
 	position: OrderedPair;
 	movetarget: OrderedPair;
-	speed: number;
-	health: number;
-	movable: true;
-	pausable: true;
+	movable: {
+		speed: number;
+	};
+	pausable: {
+		paused: boolean;
+	};
+	selectable: {
+		selected: boolean;
+	};
 }>;
 
 /* Create a Miniplex world that holds our entities */
