@@ -1,34 +1,15 @@
-'use client';
 import { useOnEntityAdded } from 'miniplex-react';
 import { ECS } from './state';
-import { proxy, useSnapshot } from 'valtio';
+import { proxy } from 'valtio';
 import { ReactNode, useRef, useState } from 'react';
 import { useEventListener } from './hooks';
+import { MovingThingsQuery, RenderedQuery, SelectableQuery } from './queries';
+import { BasicEntity } from './components/basic-entity';
 
 const {
 	Entities,
-	Entity,
 	world,
 } = ECS;
-
-const Queries = {
-	selectable: world.with('selectable'),
-	toMove: world.with(
-		'position',
-		'movable',
-	),
-	rendered: world.with(
-		'position',
-		'selectable',
-		'rotation',
-	),
-	movingThings: world.with(
-		'position',
-		'movable',
-		'movetarget',
-		'rotation',
-	),
-};
 
 world.add({
 	movable: proxy({
@@ -41,7 +22,7 @@ world.add({
 	}),
 	selectable: proxy({
 		selected: false,
-	})
+	}),
 });
 
 export default function Root() {
@@ -96,8 +77,8 @@ function GameWorld(props: Props) {
 			viewportHeight={viewportHeight}
 			viewportWidth={viewportWidth}
 		>
-			<Entities in={Queries.rendered}>
-				{e => <EntityRender entity={e}/>}
+			<Entities in={RenderedQuery}>
+				{e => <BasicEntity entity={e}/>}
 			</Entities>
 		</Viewport>
 	);
@@ -135,7 +116,7 @@ function Viewport(props: StageProps) {
 	useEventListener('mousemove', handleDrag, viewportRef);
 	useEventListener('mouseup', handleStopDragging, viewportRef);
 	useEventListener('mouseout', handleMouseOut, bodyRef);
-	useOnEntityAdded(Queries.movingThings, MoveSystem);
+	useOnEntityAdded(MovingThingsQuery, MoveSystem);
 	
 	return (
 		<div
@@ -221,8 +202,7 @@ function Viewport(props: StageProps) {
 }
 
 function handleLeftClick(ev: MouseEvent, currentX: number, currentY: number) {
-	Queries
-		.selectable
+	SelectableQuery
 		.entities
 		.filter(e => e.selectable.selected)
 		.map(e => {
@@ -234,45 +214,11 @@ function handleLeftClick(ev: MouseEvent, currentX: number, currentY: number) {
 }
 
 function handleClick() {
-	Queries.selectable.entities.map(e => e.selectable.selected = false);
-}
-
-interface EntityRenderProps {
-	entity: typeof Queries.rendered.entities[0]
-}
-
-function EntityRender(props: EntityRenderProps) {
-	const { entity} = props;
-	const position = useSnapshot(entity.position);
-	const rotation = useSnapshot(entity.rotation);
-	const selectable = useSnapshot(entity.selectable);
-
-	return (
-		<Entity entity={entity}>
-			<div
-				className="entity-container"
-				style={{
-					translate: `${position.x}px ${position.y}px 0`,
-					rotate: `${rotation.value}deg`,
-				}}
-				onClick={() => entity.selectable.selected = true}
-			>
-				<div
-					className={selectable.selected ? 'selected' : ''}
-					style={{
-						backgroundColor: 'green',
-						width: 50,
-						height: 50,
-						cursor: 'pointer',
-					}}
-				/>
-			</div>
-		</Entity>
-	);
+	SelectableQuery.entities.map(e => e.selectable.selected = false);
 }
 
 function MoveSystem() {
-	for(const e of Queries.movingThings) {
+	for(const e of MovingThingsQuery) {
 		e.position.x = e.movetarget.x;
 		e.position.y = e.movetarget.y;
 		e.rotation.value = !e.rotation.value ? 360 : 0
