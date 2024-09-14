@@ -9,7 +9,7 @@
 .stage {
   position: absolute;
   border: 1px solid black;
-  will-change: translate;
+  will-change: translate, scale;
   cursor: grab;
 	background: center url("/hex.svg");
 	background-size: 64px;
