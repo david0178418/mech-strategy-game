@@ -1,7 +1,7 @@
 import { useOnEntityAdded } from 'miniplex-react';
 import { ECS } from '../state';
 import { ReactNode, useRef, useState } from 'react';
-import { useEventListener } from '../hooks';
+import { useEventListener, useRequestAnimationFrame } from '../hooks';
 import { MovingThingsQuery, RenderedQuery, SelectableQuery } from '../queries';
 import { BasicEntity } from './basic-entity';
 import { clamp } from '../utils';
@@ -68,6 +68,7 @@ function Viewport(props: StageProps) {
 	const [offsetX, setOffsetX] = useState(0);
 	const [offsetY, setOffsetY] = useState(0);
 	const [zoom, setZoom] = useState(100);
+	const [zoomTarget, setZoomTarget] = useState(zoom);
 	const X = clamp(currentX - offsetX, -(width - viewportWidth), 0);
 	const Y = clamp(currentY - offsetY, -(height - viewportHeight), 0);
 
@@ -77,7 +78,7 @@ function Viewport(props: StageProps) {
 	useEventListener('mouseout', handleMouseOut, bodyRef);
 	useOnEntityAdded(MovingThingsQuery, MoveSystem);
 	useEventListener('wheel', e => {
-		setZoom(
+		setZoomTarget(
 			clamp(
 				zoom + (e.deltaY/10),
 				50,
@@ -85,6 +86,17 @@ function Viewport(props: StageProps) {
 			)
 		);
 	}, bodyRef);
+	useRequestAnimationFrame((delta) => {
+		const direction = (zoomTarget > zoom) ? 1 : -1;
+
+		setZoom(
+			clamp(
+				zoom + direction * Math.abs(zoom - zoomTarget) * delta,
+				Math.max(50, zoomTarget),
+				Math.min(200, zoomTarget),
+			)
+		);
+	}, zoom !== zoomTarget);
 
 	return (
 		<div

@@ -84,67 +84,55 @@ function useEventListener<
 		}
 	}, [eventName, element, options])
 }
-interface UseAnimationFrameOptions {
-	/**
-	 * Whether the animation frame should start immediately.
-	 * @default true
-	 */
-	startImmediately?: boolean;
-}
 
 export { useEventListener };
 
 export
-function useAnimationFrame(
-	callback: (deltaTime: number) => void,
-	options: UseAnimationFrameOptions = { startImmediately: true },
-): (() => void) {
-	const requestRef = useRef<number>();
-	const previousTimeRef = useRef<number>(performance.now());
-	const callbackRef = useRef(callback);
-	const isRunningRef = useRef<boolean>(false);
-	
-	// Update the callback ref when the callback prop changes
+function useRequestAnimationFrame(callback: (deltaInMilliseconds: number) => void, enabled = true): void {
+	const requestRef = useRef(0);
+	const previousTimeRef = useRef(0);
+	const callbackRef = useRef<typeof callback>(callback);
+
+
 	useEffect(() => {
 		callbackRef.current = callback;
 	}, [callback]);
-	
+
 	const animate = useCallback((timestamp: number) => {
-		if (!isRunningRef.current) return;
-	
-		const currentTime = timestamp;
-		const deltaTime = currentTime - previousTimeRef.current;
-		previousTimeRef.current = currentTime;
-	
-		callbackRef.current(deltaTime);
-	
-		requestRef.current = requestAnimationFrame(animate);
-	}, []);
-	
-	const toggleAnimation = useCallback(() => {
-		if (isRunningRef.current) {
-			cancelAnimationFrame(requestRef.current as number);
-			isRunningRef.current = false;
+		if (!previousTimeRef.current) {
+			previousTimeRef.current = timestamp;
+			callbackRef.current(0);
 		} else {
-			previousTimeRef.current = performance.now();
-			isRunningRef.current = true;
+			const delta = timestamp - previousTimeRef.current;
+			callbackRef.current(delta);
+			previousTimeRef.current = timestamp;
+		}
+		if (enabled) {
 			requestRef.current = requestAnimationFrame(animate);
 		}
-	}, [animate]);
-	
+	}, [enabled]);
+
 	useEffect(() => {
-		if (options.startImmediately) {
-		toggleAnimation();
-		}
-	
-		return () => {
-			if (isRunningRef.current) {
-				cancelAnimationFrame(requestRef.current as number);
+		if (enabled) {
+			requestRef.current = requestAnimationFrame(animate);
+			return () => {
+				if (requestRef.current) {
+					cancelAnimationFrame(requestRef.current);
+				}
+			};
+		} else {
+			if (requestRef.current) {
+				cancelAnimationFrame(requestRef.current);
 			}
-		};
-	}, [toggleAnimation, options.startImmediately]);
-	
-	return toggleAnimation;
+		}
+	}, [enabled, animate]);
+
+	// Reset previousTime when enabled changes from false to true
+	useEffect(() => {
+		if (enabled) {
+			previousTimeRef.current = 0;
+		}
+	}, [enabled]);
 }
 
 export
