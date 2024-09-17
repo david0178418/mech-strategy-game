@@ -193,7 +193,7 @@ function Viewport(props: StageProps) {
 			.map(e => {
 				world.addComponent(e, 'movetarget', {
 					x: (ev.clientX- rect.left) / zoomFactor,
-					y: ev.clientY - rect.top,
+					y: (ev.clientY - rect.top) / zoomFactor,
 				})
 			})
 	}
