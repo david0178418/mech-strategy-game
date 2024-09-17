@@ -80,7 +80,7 @@ function Viewport(props: StageProps) {
 	useEventListener('wheel', e => {
 		setZoomTarget(
 			clamp(
-				zoom + (e.deltaY/10),
+				zoom - (e.deltaY/10),
 				50,
 				200,
 			)
@@ -122,26 +122,26 @@ function Viewport(props: StageProps) {
 		</div>
 	);
 
-	function handleMouseOut(e: MouseEvent) {
+	function handleMouseOut(ev: MouseEvent) {
 		if(!isDragging) return;
-		if(e.currentTarget !== document.body) return;
+		if(ev.currentTarget !== document.body) return;
 
-		handleStopDragging(e);
+		handleStopDragging(ev);
 	}
 
-	function handleStartDragging(e: MouseEvent) {
-		if(e.button !== 0) {
+	function handleStartDragging(ev: MouseEvent) {
+		if(ev.button !== 0) {
 			return;
 		}
 
 		setIsDragging(true);
-		setInitialX(e.clientX);
-		setInitialY(e.clientY);
+		setInitialX(ev.clientX);
+		setInitialY(ev.clientY);
 	}
 
-	function handleStopDragging(e: MouseEvent) {
-		if(e.button === 2) {
-			handleLeftClick(e);
+	function handleStopDragging(ev: MouseEvent) {
+		if(ev.button === 2) {
+			handleLeftClick(ev);
 			return;
 		}
 
@@ -164,39 +164,39 @@ function Viewport(props: StageProps) {
 		setOffsetY(0);
 	}
 
-	function handleDrag(e: MouseEvent) {
-		e.preventDefault();
+	function handleDrag(ev: MouseEvent) {
+		ev.preventDefault();
 
 		if(!isDragging) {
 			return;
 		}
 
-		const newX = initialX - e.clientX;
-		const newY = initialY - e.clientY;
+		const newX = initialX - ev.clientX;
+		const newY = initialY - ev.clientY;
 
 		setOffsetX(newX);
 		setOffsetY(newY);
 
-		setOffsetX(initialX - e.clientX);
-		setOffsetY(initialY - e.clientY);
+		setOffsetX(initialX - ev.clientX);
+		setOffsetY(initialY - ev.clientY);
 	}
-}
 
-function handleLeftClick(ev: MouseEvent) {
-	// const rect = ev.target.getBoundingRect();
-	if(!(ev.target instanceof Element)) return;
-
-	const rect = ev.target.getBoundingClientRect();
-
-	SelectableQuery
-		.entities
-		.filter(e => e.selectable.selected)
-		.map(e => {
-			world.addComponent(e, 'movetarget', {
-				x: ev.clientX- rect.left,
-				y: ev.clientY - rect.top,
+	function handleLeftClick(ev: MouseEvent) {
+		if(!(ev.target instanceof Element)) return;
+	
+		const rect = ev.target.getBoundingClientRect();
+		const zoomFactor = zoom / 100; // Assuming zoom is stored as a percentage
+	
+		SelectableQuery
+			.entities
+			.filter(e => e.selectable.selected)
+			.map(e => {
+				world.addComponent(e, 'movetarget', {
+					x: (ev.clientX- rect.left) / zoomFactor,
+					y: ev.clientY - rect.top,
+				})
 			})
-		})
+	}
 }
 
 function handleClick() {
