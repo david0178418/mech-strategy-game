@@ -58,7 +58,7 @@ function Viewport(props: StageProps) {
 		viewportHeight,
 		children,
 	} = props;
-	const viewportRef = useRef(null);
+	const viewportRef = useRef<HTMLDivElement | null>(null);
 	const bodyRef = useRef(document.body);
 	const [isDragging, setIsDragging] = useState(false);
 	const [currentX, setCurrentX] = useState(0);
