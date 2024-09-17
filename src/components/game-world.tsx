@@ -71,6 +71,7 @@ function Viewport(props: StageProps) {
 	const [zoomTarget, setZoomTarget] = useState(zoom);
 	const X = clamp(currentX - offsetX, -(width - viewportWidth), 0);
 	const Y = clamp(currentY - offsetY, -(height - viewportHeight), 0);
+	const zoomFactor = zoom/100;
 
 	useEventListener('mousedown', handleStartDragging, viewportRef);
 	useEventListener('mousemove', handleDrag, viewportRef);
@@ -113,7 +114,7 @@ function Viewport(props: StageProps) {
 					width: width,
 					height: height,
 					translate: `${X}px ${Y}px`,
-					scale: (zoom/100).toFixed(2),
+					scale: zoomFactor.toFixed(2),
 					opacity: 1,
 				}}
 			>
@@ -185,7 +186,6 @@ function Viewport(props: StageProps) {
 		if(!(ev.target instanceof Element)) return;
 	
 		const rect = ev.target.getBoundingClientRect();
-		const zoomFactor = zoom / 100; // Assuming zoom is stored as a percentage
 	
 		SelectableQuery
 			.entities
