@@ -30,6 +30,8 @@ function GameWorld(props: Props) {
 
 	return (
 		<Viewport
+			minZoom={50}
+			maxZoom={200}
 			width={width}
 			height={height}
 			viewportHeight={viewportHeight}
@@ -48,6 +50,8 @@ interface StageProps {
 	viewportWidth: number;
 	viewportHeight: number;
 	children: ReactNode;
+	maxZoom: number;
+	minZoom: number;
 }
 
 function Viewport(props: StageProps) {
@@ -57,16 +61,20 @@ function Viewport(props: StageProps) {
 		viewportWidth,
 		viewportHeight,
 		children,
+		maxZoom,
+		minZoom,
 	} = props;
 	const viewportRef = useRef<HTMLDivElement | null>(null);
 	const bodyRef = useRef(document.body);
 	const [isDragging, setIsDragging] = useState(false);
-	const [currentX, setCurrentX] = useState(0);
-	const [currentY, setCurrentY] = useState(0);
+	const [currentX, setCurrentX] = useState(-(width - viewportWidth)/2);
+	const [currentY, setCurrentY] = useState(-(height - viewportHeight)/2);
 	const [initialX, setInitialX] = useState(0);
 	const [initialY, setInitialY] = useState(0);
 	const [offsetX, setOffsetX] = useState(0);
 	const [offsetY, setOffsetY] = useState(0);
+	const [mouseViewportX, setMouseViewportX] = useState(0);
+	const [mouseViewportY, setMouseViewportY] = useState(0);
 	const [zoom, setZoom] = useState(100);
 	const [zoomTarget, setZoomTarget] = useState(zoom);
 	const X = clamp(currentX - offsetX, -(width - viewportWidth), 0);
@@ -74,53 +82,61 @@ function Viewport(props: StageProps) {
 	const zoomFactor = zoom/100;
 
 	useEventListener('mousedown', handleStartDragging, viewportRef);
-	useEventListener('mousemove', handleDrag, viewportRef);
+	useEventListener('mousemove', handleMouseMove, viewportRef);
 	useEventListener('mouseup', handleStopDragging, viewportRef);
 	useEventListener('mouseout', handleMouseOut, bodyRef);
 	useOnEntityAdded(MovingThingsQuery, MoveSystem);
 	useEventListener('wheel', e => {
+		e.preventDefault();
 		setZoomTarget(
 			clamp(
 				zoom - (e.deltaY/10),
-				50,
-				200,
+				minZoom,
+				maxZoom,
 			)
 		);
-	}, bodyRef);
+	}, viewportRef);
 	useRequestAnimationFrame((delta) => {
 		const direction = (zoomTarget > zoom) ? 1 : -1;
 
 		setZoom(
 			clamp(
 				zoom + direction * Math.abs(zoom - zoomTarget) * delta,
-				Math.max(50, zoomTarget),
-				Math.min(200, zoomTarget),
+				Math.max(minZoom, zoomTarget),
+				Math.min(maxZoom, zoomTarget),
 			)
 		);
 	}, zoom !== zoomTarget);
 
 	return (
-		<div
-			className="viewport"
-			ref={viewportRef}
-			style={{
-				width: viewportWidth,
-				height: viewportHeight,
-			}}
-		>
+		<>
+			{mouseViewportX}, {mouseViewportY}<br/>
+			{currentX}, {currentY}<br/>
+			{zoomFactor}<br/>
+			{(viewportWidth/2 - mouseViewportX)}, {(viewportHeight/2 - mouseViewportY) * zoomFactor}<br/>
+			{(viewportWidth/2 - mouseViewportX) * zoomFactor}, {(viewportHeight/2 - mouseViewportY) * zoomFactor}
 			<div
-				className="stage"
+				className="viewport"
+				ref={viewportRef}
 				style={{
-					width: width,
-					height: height,
-					translate: `${X}px ${Y}px`,
-					scale: zoomFactor.toFixed(2),
-					opacity: 1,
+					width: viewportWidth,
+					height: viewportHeight,
 				}}
 			>
-				{children}
+				<div
+					className="stage"
+					style={{
+						width: width,
+						height: height,
+						translate: `${X}px ${Y}px`,
+						scale: zoomFactor.toFixed(2),
+						opacity: 1,
+					}}
+				>
+					{children}
+				</div>
 			</div>
-		</div>
+		</>
 	);
 
 	function handleMouseOut(ev: MouseEvent) {
@@ -146,7 +162,6 @@ function Viewport(props: StageProps) {
 			return;
 		}
 
-
 		if(Math.abs(offsetX) < 10 && Math.abs(offsetY) < 10) {
 			handleClick();
 		} else {
@@ -165,8 +180,15 @@ function Viewport(props: StageProps) {
 		setOffsetY(0);
 	}
 
-	function handleDrag(ev: MouseEvent) {
+	function handleMouseMove(ev: MouseEvent) {
+		if(!viewportRef.current) return;
+
+		const rect = viewportRef.current.getBoundingClientRect();
+
 		ev.preventDefault();
+
+		setMouseViewportX(ev.clientX - rect.left);
+		setMouseViewportY(ev.clientY - rect.top);
 
 		if(!isDragging) {
 			return;

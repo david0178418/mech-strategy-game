@@ -10,8 +10,8 @@ world.add({
 	}),
 	rotation: proxy({value: 0}),
 	position: proxy({
-		x: 800,
-		y: 600,
+		x: 1600,
+		y: 1200,
 	}),
 	selectable: proxy({
 		selected: false,
