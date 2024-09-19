@@ -22,8 +22,8 @@ export default function Root() {
 	return (
 		<div>
 			<GameWorld
-				width={3200}
-				height={2400}
+				width={4800}
+				height={3600}
 				viewportWidth={1200}
 				viewportHeight={900}
 			/>

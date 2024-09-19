@@ -42,9 +42,14 @@ function Viewport(props: Props) {
 	const [mouseViewportY, setMouseViewportY] = useState(0);
 	const [zoom, setZoom] = useState(100);
 	const [zoomTarget, setZoomTarget] = useState(zoom);
-	const X = clamp(currentX - offsetX, -(width - viewportWidth), 0);
-	const Y = clamp(currentY - offsetY, -(height - viewportHeight), 0);
 	const zoomFactor = zoom/100;
+	const maxX = (width * (zoomFactor - 1)) / 2;
+	const minX = maxX + (viewportWidth - width * zoomFactor);
+	const maxY = (height * (zoomFactor - 1)) / 2;
+	const minY = maxY + (viewportHeight - height * zoomFactor);
+
+	const X = clamp(currentX - offsetX, minX, maxX);
+	const Y = clamp(currentY - offsetY, minY, maxY);
 
 	useEventListener('mousedown', handleStartDragging, viewportRef);
 	useEventListener('mousemove', handleMouseMove, viewportRef);
@@ -79,34 +84,27 @@ function Viewport(props: Props) {
 	}, zoom !== zoomTarget);
 
 	return (
-		<>
-			mouseViewport: {mouseViewportX}, {mouseViewportY}<br/>
-			current: {currentX}, {currentY}<br/>
-			zoomFactor: {zoomFactor}<br/>
-			{(viewportWidth/2 - mouseViewportX)}, {(viewportHeight/2 - mouseViewportY) * zoomFactor}<br/>
-			{(viewportWidth/2 - mouseViewportX) * zoomFactor}, {(viewportHeight/2 - mouseViewportY) * zoomFactor}
+		<div
+			className="viewport"
+			ref={viewportRef}
+			style={{
+				width: viewportWidth,
+				height: viewportHeight,
+			}}
+		>
 			<div
-				className="viewport"
-				ref={viewportRef}
+				className="stage"
 				style={{
-					width: viewportWidth,
-					height: viewportHeight,
+					width: width,
+					height: height,
+					translate: `${X}px ${Y}px`,
+					scale: zoomFactor.toFixed(2),
+					opacity: 1,
 				}}
 			>
-				<div
-					className="stage"
-					style={{
-						width: width,
-						height: height,
-						translate: `${X}px ${Y}px`,
-						scale: zoomFactor.toFixed(2),
-						opacity: 1,
-					}}
-				>
-					{children}
-				</div>
+				{children}
 			</div>
-		</>
+		</div>
 	);
 
 	function handleMouseOut(ev: MouseEvent) {
@@ -134,10 +132,10 @@ function Viewport(props: Props) {
 			handleClick();
 		} else {
 			setCurrentX(
-				clamp(currentX - offsetX, -(width - viewportWidth), 0)
+				clamp(currentX - offsetX, minX, maxX)
 			);
 			setCurrentY(
-				clamp(currentY - offsetY, -(height - viewportHeight), 0)
+				clamp(currentY - offsetY, minY, maxY)
 			);
 		}
 
@@ -185,8 +183,8 @@ function Viewport(props: Props) {
 				})
 			})
 	}
-}
 
-function handleClick() {
-	SelectableQuery.entities.map(e => e.selectable.selected = false);
+	function handleClick() {
+		SelectableQuery.entities.map(e => e.selectable.selected = false);
+	}
 }

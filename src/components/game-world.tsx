@@ -23,7 +23,7 @@ function GameWorld(props: Props) {
 
 	return (
 		<Viewport
-			minZoom={50}
+			minZoom={25}
 			maxZoom={200}
 			width={width}
 			height={height}
