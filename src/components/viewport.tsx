@@ -117,9 +117,7 @@ function Viewport(props: Props) {
 	}
 
 	function handleStartDragging(ev: MouseEvent) {
-		if(ev.button !== 0) {
-			return;
-		}
+		if(ev.button !== 0) return;
 
 		setIsDragging(true);
 		setInitialX(ev.clientX);
@@ -160,9 +158,7 @@ function Viewport(props: Props) {
 		setMouseViewportX(ev.clientX - rect.left - viewportWidth / 2);
 		setMouseViewportY(ev.clientY - rect.top - viewportHeight / 2);
 
-		if(!isDragging) {
-			return;
-		}
+		if(!isDragging) return;
 
 		const newX = initialX - ev.clientX;
 		const newY = initialY - ev.clientY;
