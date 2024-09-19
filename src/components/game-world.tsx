@@ -106,8 +106,8 @@ function Viewport(props: StageProps) {
 		);
 
 		if(direction > 0) {
-			setCurrentX(currentX - mouseViewportX * (1 - newZoom / zoom));
-			setCurrentY(currentY - mouseViewportY * (1 - newZoom / zoom));
+			setCurrentX(currentX + mouseViewportX * (1 - newZoom / zoom));
+			setCurrentY(currentY + mouseViewportY * (1 - newZoom / zoom));
 		}
 
 		setZoom(newZoom);
@@ -192,8 +192,8 @@ function Viewport(props: StageProps) {
 
 		ev.preventDefault();
 
-		setMouseViewportX((viewportWidth/2) - (ev.clientX - rect.left));
-		setMouseViewportY((viewportHeight/2) - (ev.clientY - rect.top));
+		setMouseViewportX(ev.clientX - rect.left - viewportWidth / 2);
+		setMouseViewportY(ev.clientY - rect.top - viewportHeight / 2);
 
 		if(!isDragging) {
 			return;
