@@ -99,20 +99,25 @@ function Viewport(props: StageProps) {
 	useRequestAnimationFrame((delta) => {
 		const direction = (zoomTarget > zoom) ? 1 : -1;
 
-		setZoom(
-			clamp(
-				zoom + direction * Math.abs(zoom - zoomTarget) * delta,
-				Math.max(minZoom, zoomTarget),
-				Math.min(maxZoom, zoomTarget),
-			)
+		const newZoom = clamp(
+			zoom + direction * Math.abs(zoom - zoomTarget) * delta,
+			Math.max(minZoom, zoomTarget),
+			Math.min(maxZoom, zoomTarget),
 		);
+
+		if(direction > 0) {
+			setCurrentX(currentX - mouseViewportX * (1 - newZoom / zoom));
+			setCurrentY(currentY - mouseViewportY * (1 - newZoom / zoom));
+		}
+
+		setZoom(newZoom);
 	}, zoom !== zoomTarget);
 
 	return (
 		<>
-			{mouseViewportX}, {mouseViewportY}<br/>
-			{currentX}, {currentY}<br/>
-			{zoomFactor}<br/>
+			mouseViewport: {mouseViewportX}, {mouseViewportY}<br/>
+			current: {currentX}, {currentY}<br/>
+			zoomFactor: {zoomFactor}<br/>
 			{(viewportWidth/2 - mouseViewportX)}, {(viewportHeight/2 - mouseViewportY) * zoomFactor}<br/>
 			{(viewportWidth/2 - mouseViewportX) * zoomFactor}, {(viewportHeight/2 - mouseViewportY) * zoomFactor}
 			<div
@@ -187,8 +192,8 @@ function Viewport(props: StageProps) {
 
 		ev.preventDefault();
 
-		setMouseViewportX(ev.clientX - rect.left);
-		setMouseViewportY(ev.clientY - rect.top);
+		setMouseViewportX((viewportWidth/2) - (ev.clientX - rect.left));
+		setMouseViewportY((viewportHeight/2) - (ev.clientY - rect.top));
 
 		if(!isDragging) {
 			return;
