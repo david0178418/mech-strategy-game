@@ -1,6 +1,6 @@
 import { useOnEntityAdded } from 'miniplex-react';
 import { ECS } from '../state';
-import { ReactNode, useRef, useState } from 'react';
+import { MutableRefObject, ReactNode, useRef, useState } from 'react';
 import { useEventListener, useRequestAnimationFrame } from '../hooks';
 import { MovingThingsQuery, SelectableQuery } from '../queries';
 import { clamp } from '../utils';
@@ -31,6 +31,15 @@ function Viewport(props: Props) {
 	} = props;
 	const viewportRef = useRef<HTMLDivElement | null>(null);
 	const bodyRef = useRef(document.body);
+	const {
+		// mouseElRef,
+		// isDragging,
+		// dragStartX,
+		// dragStartY,
+		mouseX,
+		mouseY,
+		// activeButtonsMap,
+	} = useMouse();
 	const [isDragging, setIsDragging] = useState(false);
 	const [currentX, setCurrentX] = useState(-(width - viewportWidth)/2);
 	const [currentY, setCurrentY] = useState(-(height - viewportHeight)/2);
@@ -38,8 +47,6 @@ function Viewport(props: Props) {
 	const [initialY, setInitialY] = useState(0);
 	const [offsetX, setOffsetX] = useState(0);
 	const [offsetY, setOffsetY] = useState(0);
-	const [mouseViewportX, setMouseViewportX] = useState(0);
-	const [mouseViewportY, setMouseViewportY] = useState(0);
 	const [zoom, setZoom] = useState(100);
 	const [zoomTarget, setZoomTarget] = useState(zoom);
 	const zoomFactor = zoom/100;
@@ -48,7 +55,7 @@ function Viewport(props: Props) {
 	const maxY = (height * (zoomFactor - 1)) / 2;
 	const minY = maxY + (viewportHeight - height * zoomFactor);
 
-	const X = clamp(currentX - offsetX, minX, maxX);
+	const X = clamp(currentX - offsetX, minX, maxX); 
 	const Y = clamp(currentY - offsetY, minY, maxY);
 
 	useEventListener('mousedown', handleStartDragging, viewportRef);
@@ -76,35 +83,41 @@ function Viewport(props: Props) {
 		);
 
 		if(direction > 0) {
-			setCurrentX(currentX + mouseViewportX * (1 - newZoom / zoom));
-			setCurrentY(currentY + mouseViewportY * (1 - newZoom / zoom));
+			setCurrentX(currentX + mouseX * (1 - newZoom / zoom));
+			setCurrentY(currentY + mouseY * (1 - newZoom / zoom));
 		}
 
 		setZoom(newZoom);
 	}, zoom !== zoomTarget);
 
 	return (
-		<div
-			className="viewport"
-			ref={viewportRef}
-			style={{
-				width: viewportWidth,
-				height: viewportHeight,
-			}}
-		>
+		<>
+			<div style={{position: 'fixed'}}>
+				mouse: {mouseX}, {mouseY}<br/>
+				m: {mouseX}, {mouseY}<br/>
+			</div>
 			<div
-				className="stage"
+				className="viewport"
+				ref={viewportRef}
 				style={{
-					width: width,
-					height: height,
-					translate: `${X}px ${Y}px`,
-					scale: zoomFactor.toFixed(2),
-					opacity: 1,
+					width: viewportWidth,
+					height: viewportHeight,
 				}}
 			>
-				{children}
+				<div
+					className="stage"
+					style={{
+						width: width,
+						height: height,
+						translate: `${X}px ${Y}px`,
+						scale: zoomFactor.toFixed(2),
+						opacity: 1,
+					}}
+				>
+					{children}
+				</div>
 			</div>
-		</div>
+		</>
 	);
 
 	function handleMouseOut(ev: MouseEvent) {
@@ -149,12 +162,7 @@ function Viewport(props: Props) {
 	function handleMouseMove(ev: MouseEvent) {
 		if(!viewportRef.current) return;
 
-		const rect = viewportRef.current.getBoundingClientRect();
-
 		ev.preventDefault();
-
-		setMouseViewportX(ev.clientX - rect.left - viewportWidth / 2);
-		setMouseViewportY(ev.clientY - rect.top - viewportHeight / 2);
 
 		if(!isDragging) return;
 
@@ -187,4 +195,41 @@ function Viewport(props: Props) {
 	function handleClick() {
 		SelectableQuery.entities.map(e => e.selectable.selected = false);
 	}
+}
+
+interface ReturnValUseMouse<T> {
+	isDragging: boolean;
+	dragStartX: number;
+	dragStartY: number;
+	mouseX: number;
+	mouseY: number;
+	mouseElRef: MutableRefObject<T | null>;
+	activeButtonsMap: Record<number, boolean>;
+}
+
+function useMouse<T extends Element>(): ReturnValUseMouse<T> {
+	const [mouseX, setMouseX] = useState(0);
+	const [mouseY, setMouseY] = useState(0);
+	const mouseElRef = useRef<T | null>(null);
+
+	useEventListener('mousemove', ev => {
+		if(mouseElRef.current) {
+			const rect = mouseElRef.current.getBoundingClientRect();
+			setMouseX(ev.pageX - rect.left + window.scrollX);
+			setMouseY(ev.pageY - rect.top + window.scrollY);
+		} else {
+			setMouseX(ev.pageX);
+			setMouseY(ev.pageY);
+		}
+	});
+
+	return {
+		isDragging: false,
+		mouseX,
+		mouseY,
+		dragStartX: 0,
+		dragStartY: 0,
+		mouseElRef,
+		activeButtonsMap: {}
+	};
 }
