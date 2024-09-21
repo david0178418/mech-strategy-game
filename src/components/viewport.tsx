@@ -32,14 +32,11 @@ function Viewport(props: Props) {
 	const viewportRef = useRef<HTMLDivElement | null>(null);
 	const bodyRef = useRef(document.body);
 	const {
-		// mouseElRef,
-		// isDragging,
-		// dragStartX,
-		// dragStartY,
+		mouseElRef,
 		mouseX,
 		mouseY,
-		// activeButtonsMap,
-	} = useMouse();
+		activeButtonsMap,
+	} = useMouse<HTMLDivElement>();
 	const [isDragging, setIsDragging] = useState(false);
 	const [currentX, setCurrentX] = useState(-(width - viewportWidth)/2);
 	const [currentY, setCurrentY] = useState(-(height - viewportHeight)/2);
@@ -95,10 +92,11 @@ function Viewport(props: Props) {
 			<div style={{position: 'fixed'}}>
 				mouse: {mouseX}, {mouseY}<br/>
 				m: {mouseX}, {mouseY}<br/>
+				activeButtonsMap: <pre>{JSON.stringify(activeButtonsMap, null, 4)}</pre>
 			</div>
 			<div
 				className="viewport"
-				ref={viewportRef}
+				ref={mouseElRef}
 				style={{
 					width: viewportWidth,
 					height: viewportHeight,
@@ -197,39 +195,55 @@ function Viewport(props: Props) {
 	}
 }
 
+interface Position {
+	x: number;
+	y: number;
+}
+
+type ActiveButtonsMap = Record<number, Position | null>
+
 interface ReturnValUseMouse<T> {
-	isDragging: boolean;
-	dragStartX: number;
-	dragStartY: number;
 	mouseX: number;
 	mouseY: number;
 	mouseElRef: MutableRefObject<T | null>;
-	activeButtonsMap: Record<number, boolean>;
+	activeButtonsMap: ActiveButtonsMap;
 }
 
 function useMouse<T extends Element>(): ReturnValUseMouse<T> {
 	const [mouseX, setMouseX] = useState(0);
 	const [mouseY, setMouseY] = useState(0);
+	const [activeButtonsMap, setActiveButtonMap] = useState<ActiveButtonsMap>({})
 	const mouseElRef = useRef<T | null>(null);
-
 	useEventListener('mousemove', ev => {
 		if(mouseElRef.current) {
 			const rect = mouseElRef.current.getBoundingClientRect();
-			setMouseX(ev.pageX - rect.left + window.scrollX);
-			setMouseY(ev.pageY - rect.top + window.scrollY);
+			setMouseX(ev.pageX - rect.left - window.scrollX);
+			setMouseY(ev.pageY - rect.top - window.scrollY);
 		} else {
 			setMouseX(ev.pageX);
 			setMouseY(ev.pageY);
 		}
-	});
+	}, mouseElRef);
+	useEventListener('mousedown', ev => {
+		setActiveButtonMap({
+			...activeButtonsMap,
+			[ev.button]: {
+				x: mouseX,
+				y: mouseY,
+			},
+		});
+	}, mouseElRef);
+	useEventListener('mouseup', ev => {
+		setActiveButtonMap({
+			...activeButtonsMap,
+			[ev.button]: null,
+		});
+	}, mouseElRef);
 
 	return {
-		isDragging: false,
 		mouseX,
 		mouseY,
-		dragStartX: 0,
-		dragStartY: 0,
 		mouseElRef,
-		activeButtonsMap: {}
+		activeButtonsMap,
 	};
 }
